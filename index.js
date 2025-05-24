@@ -15,17 +15,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true
 }));
 
 // Database connection with Atlas options
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
+        const conn = await mongoose.connect(process.env.MONGODB_URI);
         console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
     } catch (error) {
         console.error('MongoDB Atlas connection error:', error.message);
