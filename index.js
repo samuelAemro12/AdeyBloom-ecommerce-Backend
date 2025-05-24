@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import authRoutes from './routes/auth.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +30,9 @@ const connectDB = async () => {
         process.exit(1);
     }
 };
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
