@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 
-export const protect = async (req, res, next) => {
+// Rename protect to authenticateToken for consistency
+export const authenticateToken = async (req, res, next) => {
     try {
         let token;
 
@@ -46,6 +47,18 @@ export const protect = async (req, res, next) => {
     }
 };
 
+// Rename authorize to isAdmin for specific admin role check
+export const isAdmin = (req, res, next) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({
+            success: false,
+            message: 'Admin access required'
+        });
+    }
+    next();
+};
+
+// Keep the original authorize function for role-based access control
 export const authorize = (...roles) => {
     return (req, res, next) => {
         if (!roles.includes(req.user.role)) {
