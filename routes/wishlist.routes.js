@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect } from '../middleware/authMiddleware.js';
+import { authenticateToken } from '../middleware/auth.middleware.js';
 import {
     getWishlist,
     addToWishlist,
@@ -11,18 +11,18 @@ import {
 const router = express.Router();
 
 // Get user's wishlist
-router.get('/', protect, getWishlist);
+router.get('/', authenticateToken, getWishlist);
 
 // Add product to wishlist
-router.post('/add/:productId', protect, addToWishlist);
+router.post('/add/:productId', authenticateToken, addToWishlist);
 
 // Remove product from wishlist
-router.delete('/remove/:productId', protect, removeFromWishlist);
+router.delete('/remove/:productId', authenticateToken, removeFromWishlist);
 
 // Move product from wishlist to cart
-router.post('/move-to-cart/:productId', protect, moveToCart);
+router.post('/move-to-cart/:productId', authenticateToken, moveToCart);
 
 // Update notification preferences for a wishlist item
-router.patch('/notifications/:productId', protect, updateNotificationPreferences);
+router.patch('/notifications/:productId', authenticateToken, updateNotificationPreferences);
 
 export default router; 
