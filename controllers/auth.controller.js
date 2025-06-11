@@ -33,7 +33,7 @@ export const register = async (req, res) => {
         const user = await User.create({
             name,
             email,
-            password: hashedPassword
+            passwordHash: hashedPassword
         });
 
         // Generate token
@@ -80,7 +80,7 @@ export const login = async (req, res) => {
         }
 
         // Check password
-        const isMatch = await bcrypt.compare(password, user.password);
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
