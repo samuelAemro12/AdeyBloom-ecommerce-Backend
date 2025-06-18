@@ -8,6 +8,7 @@ import productRoutes from './routes/product.routes.js';
 import cartRoutes from './routes/cart.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import orderRoutes from './routes/order.routes.js';
+import connectDB from './config/db.js';
 
 // Load environment variables
 dotenv.config();
@@ -23,17 +24,6 @@ app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true
 }));
-
-// Database connection with Atlas options
-const connectDB = async () => {
-    try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI);
-        console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
-    } catch (error) {
-        console.error('MongoDB Atlas connection error:', error.message);
-        process.exit(1);
-    }
-};
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -59,7 +49,11 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, async () => {
-    await connectDB();
-    console.log(`Server is running on port ${PORT}`);
+
+connectDB().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}).catch((err) => {
+    console.error('Failed to connect to DB:', err);
 });
