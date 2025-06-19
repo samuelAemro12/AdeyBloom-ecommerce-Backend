@@ -1,5 +1,4 @@
 import express from "express";
-import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
@@ -9,6 +8,8 @@ import cartRoutes from './routes/cart.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import connectDB from './config/db.js';
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 // Load environment variables
 dotenv.config();
@@ -17,11 +18,31 @@ dotenv.config();
 const app = express();
 
 // Middleware
+app.use(helmet()); // Security headers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Rate Limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+});
+app.use(limiter);
+
+// Allow multiple origins for CORS
+const defaultOrigins = ['http://localhost:5173'];
+const allowedOrigins = (process.env.CLIENT_URLS ? process.env.CLIENT_URLS.split(',') : defaultOrigins);
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
     credentials: true
 }));
 
