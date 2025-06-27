@@ -1,4 +1,7 @@
 import Product from '../models/product.model.js';
+import cloudinary from '../config/cloudinary.js';
+import multer from 'multer';
+const upload = multer({ dest: 'uploads/' });
 
 // Create a new product
 export const createProduct = async (req, res) => {
@@ -157,5 +160,20 @@ export const updateProductStock = async (req, res) => {
     res.json(product);
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+};
+
+// General image upload controller
+export const uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'products',
+    });
+    res.json({ imageUrl: result.secure_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Image upload failed', details: error.message });
   }
 }; 
