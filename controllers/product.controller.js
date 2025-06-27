@@ -53,7 +53,6 @@ export const getProducts = async (req, res) => {
 
     const products = await Product.find(query)
       .populate('category', 'name')
-      .populate('promotionId')
       .sort({ [sort]: order === 'desc' ? -1 : 1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -75,8 +74,7 @@ export const getProducts = async (req, res) => {
 export const getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
-      .populate('category', 'name')
-      .populate('promotionId');
+      .populate('category', 'name');
     
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
