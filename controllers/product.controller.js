@@ -1,7 +1,49 @@
 import Product from '../models/product.model.js';
+import Review from '../models/review.model.js';
+import Promotion from '../models/promotion.model.js';
 import cloudinary from '../config/cloudinary.js';
 import multer from 'multer';
 const upload = multer({ dest: 'uploads/' });
+
+// Helper function to calculate product rating and review count
+const calculateProductStats = async (productId) => {
+  try {
+    const reviews = await Review.find({ product: productId });
+    const totalReviews = reviews.length;
+    
+    if (totalReviews === 0) {
+      return { rating: 0, reviewCount: 0 };
+    }
+    
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    const averageRating = totalRating / totalReviews;
+    
+    return {
+      rating: Math.round(averageRating * 10) / 10, // Round to 1 decimal place
+      reviewCount: totalReviews
+    };
+  } catch (error) {
+    console.error('Error calculating product stats:', error);
+    return { rating: 0, reviewCount: 0 };
+  }
+};
+
+// Helper function to calculate discount from promotions
+const calculateDiscount = async (productId) => {
+  try {
+    const currentDate = new Date();
+    const activePromotion = await Promotion.findOne({
+      products: productId,
+      startDate: { $lte: currentDate },
+      endDate: { $gte: currentDate }
+    });
+    
+    return activePromotion ? activePromotion.discountPercent : 0;
+  } catch (error) {
+    console.error('Error calculating discount:', error);
+    return 0;
+  }
+};
 
 // Create a new product
 export const createProduct = async (req, res) => {
@@ -19,7 +61,7 @@ export const getProducts = async (req, res) => {
   try {
     const { 
       page = 1, 
-      limit = 10, 
+      limit = 50, 
       category, 
       minPrice, 
       maxPrice, 
@@ -57,10 +99,35 @@ export const getProducts = async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
+    // Calculate stats for each product
+    const productsWithStats = await Promise.all(
+      products.map(async (product) => {
+        const stats = await calculateProductStats(product._id);
+        const discount = await calculateDiscount(product._id);
+        
+        // Calculate discounted price if there's a discount
+        let finalPrice = product.price;
+        let originalPrice = product.originalPrice || product.price;
+        
+        if (discount > 0) {
+          finalPrice = product.price * (1 - discount / 100);
+        }
+        
+        return {
+          ...product.toObject(),
+          rating: stats.rating,
+          reviewCount: stats.reviewCount,
+          discount: discount,
+          originalPrice: originalPrice,
+          price: finalPrice
+        };
+      })
+    );
+
     const count = await Product.countDocuments(query);
 
     res.json({
-      products,
+      products: productsWithStats,
       totalPages: Math.ceil(count / limit),
       currentPage: page,
       totalProducts: count
@@ -80,7 +147,28 @@ export const getProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    res.json(product);
+    // Calculate stats for the product
+    const stats = await calculateProductStats(product._id);
+    const discount = await calculateDiscount(product._id);
+    
+    // Calculate discounted price if there's a discount
+    let finalPrice = product.price;
+    let originalPrice = product.originalPrice || product.price;
+    
+    if (discount > 0) {
+      finalPrice = product.price * (1 - discount / 100);
+    }
+    
+    const productWithStats = {
+      ...product.toObject(),
+      rating: stats.rating,
+      reviewCount: stats.reviewCount,
+      discount: discount,
+      originalPrice: originalPrice,
+      price: finalPrice
+    };
+    
+    res.json(productWithStats);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

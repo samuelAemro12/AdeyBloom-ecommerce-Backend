@@ -10,6 +10,14 @@ const productSchema = new mongoose.Schema({
   price: { 
     type: Number,
     required: true },
+  originalPrice: { 
+    type: Number 
+  },
+  discount: { 
+    type: Number,
+    min: 0,
+    max: 100 
+  },
   currency: { 
     type: String, 
     default: 'ETB' },
@@ -39,6 +47,18 @@ const productSchema = new mongoose.Schema({
     active: { 
       type: Boolean, 
       default: true },
+    // Rating and review fields
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    reviewCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
 }, { timestamps: true });
 
 export default mongoose.model('Product', productSchema);
