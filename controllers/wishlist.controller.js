@@ -108,18 +108,18 @@ const moveToCart = asyncHandler(async (req, res) => {
     // Find user's cart
     let cart = await Cart.findOne({ user: req.user._id });
     if (!cart) {
-        cart = await Cart.create({ user: req.user._id, items: [] });
+        cart = await Cart.create({ user: req.user._id, products: [] });
     }
 
     // Add product to cart
-    const existingItem = cart.items.find(
+    const existingItem = cart.products.find(
         item => item.product.toString() === productId
     );
 
     if (existingItem) {
         existingItem.quantity += quantity;
     } else {
-        cart.items.push({ product: productId, quantity });
+        cart.products.push({ product: productId, quantity });
     }
 
     await cart.save();

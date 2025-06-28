@@ -70,11 +70,14 @@ export const getProducts = async (req, res) => {
       order = 'desc'
     } = req.query;
 
+    console.log('🔍 Backend received query params:', { category, minPrice, maxPrice, search, sort, order });
+
     const query = { active: true };
 
     // Add category filter
     if (category) {
       query.category = category;
+      console.log('🏷️ Backend filtering by category:', category);
     }
 
     // Add price range filter
@@ -82,6 +85,7 @@ export const getProducts = async (req, res) => {
       query.price = {};
       if (minPrice) query.price.$gte = Number(minPrice);
       if (maxPrice) query.price.$lte = Number(maxPrice);
+      console.log('💰 Backend filtering by price range:', query.price);
     }
 
     // Add search functionality
@@ -91,13 +95,24 @@ export const getProducts = async (req, res) => {
         { description: { $regex: search, $options: 'i' } },
         { brand: { $regex: search, $options: 'i' } }
       ];
+      console.log('🔍 Backend searching for:', search);
     }
+
+    console.log('🔍 Backend final query:', JSON.stringify(query, null, 2));
 
     const products = await Product.find(query)
       .populate('category', 'name')
       .sort({ [sort]: order === 'desc' ? -1 : 1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
+
+    console.log('📦 Backend found products:', products.length);
+    if (products.length > 0) {
+      console.log('📦 Sample product categories:', products.slice(0, 3).map(p => ({ 
+        name: p.name, 
+        category: p.category 
+      })));
+    }
 
     // Calculate stats for each product
     const productsWithStats = await Promise.all(

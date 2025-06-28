@@ -29,9 +29,6 @@ const wishlistSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Create compound index to ensure a product can only be added once per user
-wishlistSchema.index({ user: 1, 'products.product': 1 }, { unique: true });
-
 const Wishlist = mongoose.model('Wishlist', wishlistSchema);
 
 export default Wishlist;
