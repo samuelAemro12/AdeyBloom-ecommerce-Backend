@@ -18,7 +18,9 @@ const paymentSchema = new mongoose.Schema({
   status: { type: String },
   provider: { 
     type: String, 
-    enum: ['stripe', 'chapa'] },
+    enum: ['chapa'],
+    default: 'chapa'
+  },
   paidAt: { type: Date },
 }, { timestamps: true });
 

@@ -37,7 +37,8 @@ const orderSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['credit_card', 'paypal']
+    enum: ['chapa'],
+    default: 'chapa'
   },
   currency: {
     type: String, 
