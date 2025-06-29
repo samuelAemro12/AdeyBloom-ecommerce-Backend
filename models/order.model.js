@@ -46,11 +46,14 @@ const orderSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled'], 
+    enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded'], 
     default: 'pending' },
   paymentIntentId: { type: String },
   trackingNumber: {
     type: String
+  },
+  refundDate: {
+    type: Date
   },
   createdAt: { 
     type: Date, 

@@ -3,17 +3,23 @@ import Payment from '../models/payment.model.js';
 import Order from '../models/order.model.js';
 import axios from 'axios';
 
-// Initialize Chapa with your secret key
+// Initialize Chapa with test secret key only
 const CHAPA_SECRET_KEY = process.env.CHAPA_SECRET_KEY;
 const CHAPA_BASE_URL = 'https://api.chapa.co/v1';
 
-// Initialize payment
+// Initialize payment (Test Mode Only)
 const initializePayment = asyncHandler(async (req, res) => {
     const { orderId, amount, currency = 'ETB', email, firstName, lastName, phone } = req.body;
 
     if (!orderId || !amount || !email) {
         res.status(400);
         throw new Error('Missing required fields: orderId, amount, email');
+    }
+
+    // Validate that we're using test key
+    if (!CHAPA_SECRET_KEY || !CHAPA_SECRET_KEY.startsWith('CHASECK_TEST-')) {
+        res.status(500);
+        throw new Error('Test mode only: Please use CHASECK_TEST- key');
     }
 
     try {
@@ -24,25 +30,27 @@ const initializePayment = asyncHandler(async (req, res) => {
             throw new Error('Order not found');
         }
 
-        // Create Chapa payment request
+        // Create Chapa payment request (Test Mode)
         const paymentData = {
             amount: amount.toString(),
             currency: currency,
             email: email,
-            first_name: firstName || order.user.firstName || 'Customer',
-            last_name: lastName || order.user.lastName || 'Name',
-            phone: phone || order.user.phone || '',
-            tx_ref: `order_${orderId}_${Date.now()}`,
-            callback_url: `${process.env.CLIENT_URL}/payment-verification`,
-            return_url: `${process.env.CLIENT_URL}/order-confirmation/${orderId}`,
+            first_name: firstName || order.user.name?.split(' ')[0] || 'Test',
+            last_name: lastName || order.user.name?.split(' ').slice(1).join(' ') || 'Customer',
+            phone: phone || '+251900000000',
+            tx_ref: `test_order_${orderId}_${Date.now()}`,
+            callback_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/payment-verification`,
+            return_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/order-confirmation/${orderId}`,
             customizations: {
-                title: 'Beauty Products E-commerce',
-                description: `Payment for order #${orderId}`,
+                title: 'Beauty Products E-commerce (Test)',
+                description: `Test payment for order #${orderId}`,
                 logo: 'https://your-logo-url.com/logo.png'
             }
         };
 
-        // Make request to Chapa API
+        console.log('🧪 Test Payment Request:', paymentData);
+
+        // Make request to Chapa API (Test Mode)
         const response = await axios.post(
             `${CHAPA_BASE_URL}/transaction/initialize`,
             paymentData,
@@ -63,12 +71,14 @@ const initializePayment = asyncHandler(async (req, res) => {
                 amount: amount,
                 currency: currency,
                 status: 'pending',
-                provider: 'chapa'
+                provider: 'chapa_test'
             });
+
+            console.log('✅ Test Payment Initialized:', response.data.data.reference);
 
             res.status(200).json({
                 success: true,
-                message: 'Payment initialized successfully',
+                message: 'Test payment initialized successfully',
                 data: {
                     checkoutUrl: response.data.data.checkout_url,
                     reference: response.data.data.reference,
@@ -77,16 +87,16 @@ const initializePayment = asyncHandler(async (req, res) => {
             });
         } else {
             res.status(400);
-            throw new Error('Failed to initialize payment');
+            throw new Error('Failed to initialize test payment');
         }
     } catch (error) {
-        console.error('Payment initialization error:', error);
+        console.error('Test Payment initialization error:', error);
         res.status(500);
-        throw new Error(error.response?.data?.message || 'Payment initialization failed');
+        throw new Error(error.response?.data?.message || 'Test payment initialization failed');
     }
 });
 
-// Verify payment
+// Verify payment (Test Mode Only)
 const verifyPayment = asyncHandler(async (req, res) => {
     const { reference } = req.params;
 
@@ -96,7 +106,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
     }
 
     try {
-        // Verify payment with Chapa
+        // Verify payment with Chapa (Test Mode)
         const response = await axios.get(
             `${CHAPA_BASE_URL}/transaction/verify/${reference}`,
             {
@@ -116,22 +126,22 @@ const verifyPayment = asyncHandler(async (req, res) => {
                 throw new Error('Payment record not found');
             }
 
-            // Update payment status
-            payment.status = paymentData.status === 'success' ? 'completed' : 'failed';
+            // Update payment status (Test Mode - always mark as completed for demo)
+            payment.status = 'completed';
             payment.paidAt = new Date();
             await payment.save();
 
-            // Update order status if payment is successful
-            if (payment.status === 'completed') {
-                await Order.findByIdAndUpdate(payment.order, {
-                    status: 'paid',
-                    paymentIntentId: reference
-                });
-            }
+            // Update order status
+            await Order.findByIdAndUpdate(payment.order, {
+                status: 'paid',
+                paymentIntentId: reference
+            });
+
+            console.log('✅ Test Payment Verified:', reference);
 
             res.status(200).json({
                 success: true,
-                message: 'Payment verified successfully',
+                message: 'Test payment verified successfully',
                 data: {
                     status: payment.status,
                     amount: payment.amount,
@@ -141,39 +151,13 @@ const verifyPayment = asyncHandler(async (req, res) => {
             });
         } else {
             res.status(400);
-            throw new Error('Payment verification failed');
+            throw new Error('Test payment verification failed');
         }
     } catch (error) {
-        console.error('Payment verification error:', error);
+        console.error('Test Payment verification error:', error);
         res.status(500);
-        throw new Error(error.response?.data?.message || 'Payment verification failed');
+        throw new Error(error.response?.data?.message || 'Test payment verification failed');
     }
-});
-
-// Webhook handler for Chapa
-const webhookHandler = asyncHandler(async (req, res) => {
-    const { event, data } = req.body;
-
-    if (event === 'charge.success') {
-        try {
-            const payment = await Payment.findOne({ paymentIntentId: data.reference });
-            if (payment) {
-                payment.status = 'completed';
-                payment.paidAt = new Date();
-                await payment.save();
-
-                // Update order status
-                await Order.findByIdAndUpdate(payment.order, {
-                    status: 'paid',
-                    paymentIntentId: data.reference
-                });
-            }
-        } catch (error) {
-            console.error('Webhook processing error:', error);
-        }
-    }
-
-    res.status(200).json({ received: true });
 });
 
 // Get payment status
@@ -202,6 +186,5 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
 export {
     initializePayment,
     verifyPayment,
-    webhookHandler,
     getPaymentStatus
 }; 

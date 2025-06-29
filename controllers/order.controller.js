@@ -28,9 +28,21 @@ export const createOrder = async (req, res) => {
             return res.status(400).json({ message: 'Cart is empty' });
         }
 
+        // Validate cart items have required data
+        for (let item of cart.products) {
+            if (!item.product || !item.product._id || !item.quantity) {
+                console.error('Invalid cart item:', item);
+                return res.status(400).json({ 
+                    message: 'Invalid cart item data. Please refresh your cart and try again.' 
+                });
+            }
+        }
+
         // Calculate subtotal
         const subtotal = cart.products.reduce((total, item) => {
-            return total + (item.product.price * item.quantity);
+            const price = item.product?.price || 0;
+            const quantity = item.quantity || 0;
+            return total + (price * quantity);
         }, 0);
 
         console.log('Calculations:', { subtotal, cartProducts: cart.products.length });
@@ -46,7 +58,11 @@ export const createOrder = async (req, res) => {
         // Create order items
         const orderItems = await Promise.all(
             cart.products.map(async (item) => {
-                console.log('Creating order item:', { productId: item.product._id, quantity: item.quantity, price: item.product.price });
+                console.log('Creating order item:', { 
+                    productId: item.product._id, 
+                    quantity: item.quantity, 
+                    price: item.product.price 
+                });
                 const orderItem = new OrderItem({
                     product: item.product._id,
                     quantity: item.quantity,
@@ -102,7 +118,11 @@ export const createOrder = async (req, res) => {
     } catch (error) {
         console.error('Error creating order:', error);
         console.error('Error stack:', error.stack);
-        res.status(500).json({ message: 'Error creating order', error: error.message });
+        res.status(500).json({ 
+            message: 'Error creating order', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -231,5 +251,53 @@ export const requestRefund = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ message: 'Error requesting refund', error: error.message });
+    }
+};
+
+// Simulate refund (Admin only) - Test mode
+export const simulateRefund = async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.orderId);
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // Check if order is eligible for refund (paid or delivered)
+        if (order.status !== 'paid' && order.status !== 'delivered') {
+            return res.status(400).json({ 
+                message: 'Only paid or delivered orders can be refunded' 
+            });
+        }
+
+        // Check if already refunded
+        if (order.status === 'refunded') {
+            return res.status(400).json({ 
+                message: 'Order has already been refunded' 
+            });
+        }
+
+        // Simulate refund by updating order status
+        order.status = 'refunded';
+        order.refundDate = new Date();
+        await order.save();
+
+        console.log(`✅ Test refund processed for order: ${order._id}`);
+
+        res.json({ 
+            message: 'Refund processed successfully (Test Mode)', 
+            order: {
+                _id: order._id,
+                status: order.status,
+                refundDate: order.refundDate,
+                totalAmount: order.totalAmount
+            }
+        });
+    } catch (error) {
+        console.error('Error processing refund:', error);
+        res.status(500).json({ 
+            message: 'Error processing refund', 
+            error: error.message 
+        });
     }
 }; 

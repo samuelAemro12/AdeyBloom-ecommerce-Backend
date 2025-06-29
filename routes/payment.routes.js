@@ -2,7 +2,6 @@ import express from 'express';
 import { 
     initializePayment, 
     verifyPayment, 
-    webhookHandler, 
     getPaymentStatus 
 } from '../controllers/payment.controller.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
@@ -14,9 +13,6 @@ router.post('/initialize', authenticateToken, initializePayment);
 
 // Verify payment (public route for callbacks)
 router.get('/verify/:reference', verifyPayment);
-
-// Webhook handler (public route for Chapa webhooks)
-router.post('/webhook', webhookHandler);
 
 // Get payment status (requires authentication)
 router.get('/status/:paymentId', authenticateToken, getPaymentStatus);
