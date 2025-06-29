@@ -6,23 +6,47 @@ import Refund from '../models/refund.model.js';
 // Create new order
 export const createOrder = async (req, res) => {
     try {
+        console.log('Order creation request:', {
+            body: req.body,
+            userId: req.user._id,
+            user: req.user
+        });
+
         const { shippingAddress, paymentMethod } = req.body;
         const userId = req.user._id;
 
         // Get user's cart
         const cart = await Cart.findOne({ user: userId }).populate('products.product');
+        console.log('Cart found:', {
+            cartExists: !!cart,
+            cartProducts: cart?.products?.length || 0,
+            cartProducts: cart?.products
+        });
+
         if (!cart || cart.products.length === 0) {
+            console.log('Cart is empty or not found');
             return res.status(400).json({ message: 'Cart is empty' });
         }
 
-        // Calculate total amount
-        const totalAmount = cart.products.reduce((total, item) => {
+        // Calculate subtotal
+        const subtotal = cart.products.reduce((total, item) => {
             return total + (item.product.price * item.quantity);
         }, 0);
+
+        console.log('Calculations:', { subtotal, cartProducts: cart.products.length });
+
+        // Calculate shipping and tax
+        const shippingCost = 150; // ETB
+        const taxRate = 0.15; // 15%
+        const tax = subtotal * taxRate;
+        const totalAmount = subtotal + shippingCost + tax;
+
+        console.log('Order calculations:', { subtotal, shippingCost, tax, totalAmount });
 
         // Create order items
         const orderItems = await Promise.all(
             cart.products.map(async (item) => {
+                console.log('Creating order item:', { productId: item.product._id, quantity: item.quantity, price: item.product.price });
                 const orderItem = new OrderItem({
                     product: item.product._id,
                     quantity: item.quantity,
@@ -33,6 +57,8 @@ export const createOrder = async (req, res) => {
             })
         );
 
+        console.log('Order items created:', orderItems.length);
+
         // Create order
         const order = new Order({
             user: userId,
@@ -40,8 +66,11 @@ export const createOrder = async (req, res) => {
             totalAmount,
             shippingAddress,
             paymentMethod,
-            status: 'pending'
+            status: 'pending',
+            currency: 'ETB'
         });
+
+        console.log('Saving order:', { orderId: order._id, totalAmount, paymentMethod });
 
         await order.save();
 
@@ -49,12 +78,30 @@ export const createOrder = async (req, res) => {
         cart.products = [];
         await cart.save();
 
+        console.log('Cart cleared');
+
+        // Populate order items with product details for response
+        const populatedOrder = await order.populate({
+            path: 'orderItems',
+            populate: {
+                path: 'product'
+            }
+        });
+
+        console.log('Order created successfully:', populatedOrder._id);
+
         res.status(201).json({
             message: 'Order created successfully',
-            order: await order.populate('orderItems')
+            order: {
+                ...populatedOrder.toObject(),
+                subtotal,
+                shippingCost,
+                tax
+            }
         });
     } catch (error) {
         console.error('Error creating order:', error);
+        console.error('Error stack:', error.stack);
         res.status(500).json({ message: 'Error creating order', error: error.message });
     }
 };
