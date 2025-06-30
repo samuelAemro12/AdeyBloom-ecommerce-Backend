@@ -149,3 +149,16 @@ export const clearCart = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 }; 
+
+
+export const clearAllFromCart = async (req, res) => {
+  try {
+
+    // Set products to empty array for all carts
+    await Cart.updateMany({}, { $set: { products: [] } });
+
+    res.json({ message: 'All carts cleared successfully' });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};

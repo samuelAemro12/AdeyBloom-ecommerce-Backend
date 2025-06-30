@@ -19,5 +19,8 @@ router.post('/add', addToCart);
 router.patch('/update/:productId', updateCartItem);
 router.delete('/remove/:productId', removeFromCart);
 router.delete('/clear', clearCart);
+router.delete('/clearAllFromCart', clearCart);
+
+
 
 export default router; 
