@@ -34,26 +34,12 @@ const orderSchema = new mongoose.Schema({
       required: true
     }
   },
-  paymentMethod: {
-    type: String,
-    required: true,
-    enum: ['chapa'],
-    default: 'chapa'
-  },
-  currency: {
-    type: String, 
-    default: 'ETB' 
-  },
   status: { 
     type: String, 
-    enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded'], 
+    enum: ['pending', 'shipped', 'delivered', 'cancelled'], 
     default: 'pending' },
-  paymentIntentId: { type: String },
   trackingNumber: {
     type: String
-  },
-  refundDate: {
-    type: Date
   },
   createdAt: { 
     type: Date, 
