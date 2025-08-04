@@ -448,11 +448,12 @@ CMD ["node", "index.js"]
 
 ## 📄 License
 
-This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 👥 Authors
 
 - **Samuel Aemro** - *Lead Backend Developer* - [@samuelAemro12](https://github.com/samuelAemro12)
+- **Feven Mesfin** - *Developer* - [@Phebe-Mesfin](https://github.com/Phebe-Mesfin)
 
 ## 🙏 Acknowledgments
 
@@ -467,3 +468,4 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 ├── package.json              # Dependencies and scripts
 └── README.md                 # Project documentation
 ```
+
