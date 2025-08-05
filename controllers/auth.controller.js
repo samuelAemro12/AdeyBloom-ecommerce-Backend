@@ -142,4 +142,79 @@ export const getMe = async (req, res) => {
             message: error.message
         });
     }
-}; 
+};
+
+// Add admin registration endpoint
+export const registerAdmin = async (req, res) => {
+    try {
+        const { name, email, password, adminSecret } = req.body;
+        
+        // Debug logs
+        console.log('Request body:', req.body);
+        console.log('Admin secret check passed');
+        
+        // Check admin secret
+        if (adminSecret !== process.env.ADMIN_SECRET) {
+            return res.status(403).json({
+                success: false,
+                message: 'Invalid admin secret'
+            });
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: `User with email ${email} already exists. Role: ${existingUser.role}`
+            });
+        }
+
+        // Validate required fields
+        if (!name || !email || !password) {
+            console.log('Missing required fields:', { name: !!name, email: !!email, password: !!password });
+            return res.status(400).json({
+                success: false,
+                message: 'All fields are required'
+            });
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        // Create admin user
+        const user = await User.create({
+            name,
+            email,
+            passwordHash,
+            role: 'admin'
+        });
+
+        const token = generateToken(user._id);
+
+        // Set HTTP-only cookie
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        });
+
+        res.status(201).json({
+            success: true,
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        console.error('Admin registration error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
