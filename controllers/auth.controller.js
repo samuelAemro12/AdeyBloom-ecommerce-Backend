@@ -14,35 +14,63 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, role = 'customer', adminSecret } = req.body;
 
-        // Check if user exists
-        const userExists = await User.findOne({ email });
-        if (userExists) {
+        // If registering as admin, check admin secret
+        if (role === 'admin') {
+            if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid admin secret key'
+                });
+            }
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
             return res.status(400).json({
                 success: false,
                 message: 'User already exists'
             });
         }
 
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        // Validate required fields based on role
+        if (!name || !email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name and email are required'
+            });
+        }
 
-        // Create user
+        // For customers, password is required
+        if (role === 'customer' && !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password is required for customer registration'
+            });
+        }
+
+        // Hash password (use admin secret as password for admins)
+        const salt = await bcrypt.genSalt(10);
+        const passwordToHash = role === 'admin' ? adminSecret : password;
+        const passwordHash = await bcrypt.hash(passwordToHash, salt);
+
+        // Create user with specified role
         const user = await User.create({
             name,
             email,
-            passwordHash: hashedPassword
+            passwordHash,
+            role: role || 'customer'
         });
 
-        // Generate token
         const token = generateToken(user._id);
 
-        // Set cookie
+        // Set HTTP-only cookie
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
             maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
         });
 
@@ -68,9 +96,9 @@ export const register = async (req, res) => {
 // @access  Public
 export const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, role = 'customer' } = req.body;
 
-        // Check for user
+        // Check if user exists
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(401).json({
@@ -79,22 +107,30 @@ export const login = async (req, res) => {
             });
         }
 
+        // Check if user role matches requested role
+        if (user.role !== role) {
+            return res.status(401).json({
+                success: false,
+                message: `No ${role} account found with this email`
+            });
+        }
+
         // Check password
-        const isMatch = await bcrypt.compare(password, user.passwordHash);
-        if (!isMatch) {
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+        if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid credentials'
             });
         }
 
-        // Generate token
         const token = generateToken(user._id);
 
-        // Set cookie
+        // Set HTTP-only cookie
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
             maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
         });
 
