@@ -90,7 +90,6 @@ beauty-product-ecommerce-Backend/
 │   ├── orderItem.model.js     # Order items schema
 │   ├── product.model.js       # Product schema
 │   ├── promotion.model.js     # Promotions & discounts
-│   ├── refund.model.js        # Refund management
 │   ├── review.model.js        # Product reviews
 │   ├── user.model.js          # User account schema
 │   └── wishlist.model.js      # Wishlist schema
@@ -239,7 +238,6 @@ GET    /api/orders/my-orders  # Get user's orders
 GET    /api/orders/:orderId   # Get single order
 PATCH  /api/orders/:orderId/status  # Update order status (Admin)
 POST   /api/orders/:orderId/cancel  # Cancel order
-POST   /api/orders/:orderId/refund  # Request refund
 ```
 
 ### Wishlist Endpoints

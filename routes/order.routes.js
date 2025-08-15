@@ -6,8 +6,6 @@ import {
     getOrder,
     updateOrderStatus,
     cancelOrder,
-    requestRefund,
-    simulateRefund
 } from '../controllers/order.controller.js';
 
 const router = express.Router();
@@ -26,11 +24,5 @@ router.patch('/:orderId/status', authenticateToken, isAdmin, updateOrderStatus);
 
 // Cancel order
 router.post('/:orderId/cancel', authenticateToken, cancelOrder);
-
-// Request refund
-router.post('/:orderId/refund', authenticateToken, requestRefund);
-
-// Simulate refund (admin only) - Test mode
-router.post('/:orderId/simulate-refund', authenticateToken, isAdmin, simulateRefund);
 
 export default router; 

@@ -1,7 +1,6 @@
 import Order from '../models/order.model.js';
 import OrderItem from '../models/orderItem.model.js';
 import Cart from '../models/cart.model.js';
-import Refund from '../models/refund.model.js';
 
 // Create new order
 export const createOrder = async (req, res) => {
@@ -209,95 +208,6 @@ export const cancelOrder = async (req, res) => {
 
         res.json({ message: 'Order cancelled successfully', order });
     } catch (error) {
-        res.status(500).json({ message: 'Error cancelling order', error: error.message });
+        res.status(500).json({ message: 'Error canceling order', error: error.message });
     }
 };
-
-// Request refund
-export const requestRefund = async (req, res) => {
-    try {
-        const { reason } = req.body;
-        const order = await Order.findOne({
-            _id: req.params.orderId,
-            user: req.user._id
-        });
-
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
-
-        if (order.status !== 'delivered') {
-            return res.status(400).json({ message: 'Only delivered orders can be refunded' });
-        }
-
-        // Check if refund already exists
-        const existingRefund = await Refund.findOne({ order: order._id });
-        if (existingRefund) {
-            return res.status(400).json({ message: 'Refund request already exists for this order' });
-        }
-
-        const refund = new Refund({
-            order: order._id,
-            user: req.user._id,
-            reason,
-            status: 'pending'
-        });
-
-        await refund.save();
-
-        res.status(201).json({
-            message: 'Refund request submitted successfully',
-            refund
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Error requesting refund', error: error.message });
-    }
-};
-
-// Simulate refund (Admin only) - Test mode
-export const simulateRefund = async (req, res) => {
-    try {
-        const order = await Order.findById(req.params.orderId);
-
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
-
-        // Check if order is eligible for refund (paid or delivered)
-        if (order.status !== 'paid' && order.status !== 'delivered') {
-            return res.status(400).json({ 
-                message: 'Only paid or delivered orders can be refunded' 
-            });
-        }
-
-        // Check if already refunded
-        if (order.status === 'refunded') {
-            return res.status(400).json({ 
-                message: 'Order has already been refunded' 
-            });
-        }
-
-        // Simulate refund by updating order status
-        order.status = 'refunded';
-        order.refundDate = new Date();
-        await order.save();
-
-        console.log(`✅ Test refund processed for order: ${order._id}`);
-
-        res.json({ 
-            message: 'Refund processed successfully (Test Mode)', 
-            order: {
-                _id: order._id,
-                status: order.status,
-                refundDate: order.refundDate,
-                totalAmount: order.totalAmount
-            }
-        });
-    } catch (error) {
-        console.error('Error processing refund:', error);
-        res.status(500).json({ 
-            message: 'Error processing refund', 
-            error: error.message 
-        });
-    }
-}; 
