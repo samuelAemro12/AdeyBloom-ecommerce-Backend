@@ -6,7 +6,8 @@ import {
     getAllOrders, 
     updateOrderStatus,
     updateUserRole,
-    deleteUser
+    deleteUser,
+    toggleUserActive
 } from '../controllers/admin.controller.js';
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.get('/dashboard/stats', getDashboardStats);
 // User management
 router.get('/users', getAllUsers);
 router.put('/users/:id/role', updateUserRole);
+router.put('/users/:id/active', toggleUserActive);
 router.delete('/users/:id', deleteUser);
 
 // Order management

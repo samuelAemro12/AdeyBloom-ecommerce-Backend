@@ -14,16 +14,14 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res) => {
     try {
-        const { name, email, password, role = 'customer', adminSecret } = req.body;
+        const { name, email, password, role = 'customer' } = req.body;
 
-        // If registering as admin, check admin secret
+        // Disallow creating admin via public register endpoint.
         if (role === 'admin') {
-            if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Invalid admin secret key'
-                });
-            }
+            return res.status(403).json({
+                success: false,
+                message: 'Admin accounts must be created via /auth/register-admin'
+            });
         }
 
         // Check if user already exists
@@ -43,18 +41,17 @@ export const register = async (req, res) => {
             });
         }
 
-        // For customers, password is required
-        if (role === 'customer' && !password) {
+    // For customers, password is required
+    if (!password) {
             return res.status(400).json({
                 success: false,
                 message: 'Password is required for customer registration'
             });
         }
 
-        // Hash password (use admin secret as password for admins)
-        const salt = await bcrypt.genSalt(10);
-        const passwordToHash = role === 'admin' ? adminSecret : password;
-        const passwordHash = await bcrypt.hash(passwordToHash, salt);
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
 
         // Create user with specified role
         const user = await User.create({
@@ -167,7 +164,7 @@ export const logout = (req, res) => {
 // @access  Private
 export const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select('-passwordHash');
         res.json({
             success: true,
             user
