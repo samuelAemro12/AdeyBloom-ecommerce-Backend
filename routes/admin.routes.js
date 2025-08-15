@@ -4,7 +4,9 @@ import {
     getDashboardStats, 
     getAllUsers, 
     getAllOrders, 
-    updateOrderStatus 
+    updateOrderStatus,
+    updateUserRole,
+    deleteUser
 } from '../controllers/admin.controller.js';
 
 const router = express.Router();
@@ -17,6 +19,8 @@ router.get('/dashboard/stats', getDashboardStats);
 
 // User management
 router.get('/users', getAllUsers);
+router.put('/users/:id/role', updateUserRole);
+router.delete('/users/:id', deleteUser);
 
 // Order management
 router.get('/orders', getAllOrders);
