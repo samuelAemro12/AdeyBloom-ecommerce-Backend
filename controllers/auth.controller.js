@@ -104,6 +104,9 @@ export const login = async (req, res) => {
             });
         }
 
+    // Debugging: log role mismatch info
+    console.debug('Login attempt:', { email, requestedRole: role, storedRole: user.role });
+
         // Check if user role matches requested role
         if (user.role !== role) {
             return res.status(401).json({
@@ -113,7 +116,8 @@ export const login = async (req, res) => {
         }
 
         // Check password
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    console.debug('Password valid:', isPasswordValid);
         if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
