@@ -2,6 +2,7 @@ import User from '../models/user.model.js';
 import Product from '../models/product.model.js';
 import Order from '../models/order.model.js';
 import OrderItem from '../models/orderItem.model.js';
+import Setting from '../models/setting.model.js';
 
 export const getDashboardStats = async (req, res) => {
     try {
@@ -218,5 +219,27 @@ export const deleteUser = async (req, res) => {
             success: false,
             message: error.message
         });
+    }
+};
+
+export const getSettings = async (req, res) => {
+    try {
+        let settings = await Setting.findOne();
+        if (!settings) {
+            settings = await Setting.create({});
+        }
+        res.json({ success: true, settings });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const updateSettings = async (req, res) => {
+    try {
+        const updates = req.body;
+        const settings = await Setting.findOneAndUpdate({}, updates, { new: true, upsert: true });
+        res.json({ success: true, settings });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };

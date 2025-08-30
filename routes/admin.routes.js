@@ -7,7 +7,9 @@ import {
     updateOrderStatus,
     updateUserRole,
     deleteUser,
-    toggleUserActive
+    toggleUserActive,
+    getSettings,
+    updateSettings
 } from '../controllers/admin.controller.js';
 
 const router = express.Router();
@@ -17,6 +19,10 @@ router.use(authenticateToken, isAdmin);
 
 // Dashboard stats
 router.get('/dashboard/stats', getDashboardStats);
+
+// Settings
+router.get('/settings', getSettings);
+router.put('/settings', updateSettings);
 
 // User management
 router.get('/users', getAllUsers);
