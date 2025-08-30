@@ -4,7 +4,7 @@ const SettingSchema = new mongoose.Schema({
   siteName: { type: String, default: 'Beauty Products Store' },
   siteDescription: { type: String, default: 'Your one-stop shop for beauty products' },
   adminEmail: { type: String, default: 'admin@beautystore.com' },
-  currency: { type: String, default: 'USD' },
+  currency: { type: String, default: 'ETB' },
   language: { type: String, default: 'en' },
   timezone: { type: String, default: 'UTC' },
   emailNotifications: { type: Boolean, default: true },
