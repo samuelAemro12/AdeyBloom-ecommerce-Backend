@@ -10,6 +10,7 @@ import orderRoutes from './routes/order.routes.js';
 import categoryRoutes from './routes/category.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import reviewRoutes from './routes/review.routes.js';
 import connectDB from './config/db.js';
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -58,6 +59,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
