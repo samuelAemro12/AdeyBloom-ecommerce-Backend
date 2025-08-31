@@ -4,13 +4,15 @@ import {
   addReview,
   getProductReviews,
   updateReview,
-  deleteReview
+  deleteReview,
+  getRecentReviews
 } from '../controllers/review.controller.js';
 
 const router = express.Router();
 
 // Public routes
 router.get('/product/:productId', getProductReviews);
+router.get('/recent', getRecentReviews);
 
 // Protected routes
 router.use(authenticateToken);
