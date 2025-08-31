@@ -61,13 +61,20 @@ export const getDashboardStats = async (req, res) => {
             { $unwind: '$productDetails' }
         ]);
 
+        // Total items sold across all orders (sum of quantities)
+        const itemsSoldAgg = await OrderItem.aggregate([
+            { $group: { _id: null, totalQuantity: { $sum: '$quantity' } } }
+        ]);
+        const itemsSold = itemsSoldAgg[0]?.totalQuantity || 0;
+
         res.json({
             success: true,
             stats: {
                 totalUsers,
                 totalProducts,
                 totalOrders,
-                totalRevenue: totalRevenue[0]?.total || 0,
+                    totalRevenue: totalRevenue[0]?.total || 0,
+                    itemsSold,
                 recentOrders,
                 salesData,
                 topSellingProducts
