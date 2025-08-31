@@ -83,7 +83,10 @@ export const getDashboardStats = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({ role: 'customer' })
+        // Return all users (customers and admins). Previously this endpoint
+        // filtered to only customers which prevented admins from appearing
+        // in the admin users list.
+        const users = await User.find()
             .select('-passwordHash')
             .sort({ createdAt: -1 });
 
