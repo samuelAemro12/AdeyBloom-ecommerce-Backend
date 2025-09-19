@@ -35,6 +35,13 @@ A robust, scalable RESTful API backend for a beauty products e-commerce platform
 - **Error Handling** - Centralized error management
 - **Database Security** - MongoDB injection prevention
 
+### ♻️ Resilience & Deployment Enhancements (Recent Changes)
+- **Primary → Fallback Database Strategy**: Attempts MongoDB Atlas ( `MONGODB_URI` ) first; on failure automatically retries a local instance ( `MONGODB_URI_LOCAL` ).
+- **Prioritized CORS Origins**: Production origin (`CLIENT_URL`) is evaluated first; local development origin (`CLIENT_URL_LOCAL`) is accepted as a fallback. Legacy `CLIENT_URLS` still supported.
+- **Consistent API Base Path**: All public routes are mounted under `/api/*`. Frontend clients should point their base (without `/api`) and allow their HTTP layer to append it once (our frontend does automatic normalization now).
+- **Review Aggregation**: Added site‑wide recent reviews endpoint plus product‑scoped review listing to power dynamic testimonial carousel.
+- **Discount & Rating Enrichment**: Product responses can include derived rating, reviewCount, discount, and dynamic final price when promotions are active.
+
 ### ☁️ Cloud Integration
 - **Cloudinary Integration** - Image upload and management
 - **File Upload** - Multer-based file handling
@@ -193,9 +200,18 @@ beauty-product-ecommerce-Backend/
    ```
 
 3. **Start production server**
-   ```bash
-   npm start
-   ```
+  ```bash
+  npm start
+  ```
+
+### Deployment / Resilience Notes
+| Concern | Strategy |
+|---------|----------|
+| Database availability | Try Atlas first ( `MONGODB_URI` ). If connect fails, attempts `MONGODB_URI_LOCAL`. Clear console logs indicate which is active. |
+| CORS | Normalizes and logs `[CORS] Allowed origins (priority order)` at startup so misconfigurations are visible immediately. |
+| Image hosting | Cloudinary integrated; local `uploads/` only transient. |
+| Auth cookies | Sent with `credentials: true`; ensure production origin + backend both use HTTPS and proper same-site settings (adjust if deploying over different subdomains). |
+| 401 responses | Expected when unauthenticated clients hit protected endpoints—avoid treating as fatal in monitoring. |
 
 ## 📚 API Documentation
 
@@ -220,6 +236,15 @@ POST   /api/products          # Create product (Admin only)
 PUT    /api/products/:id      # Update product (Admin only)
 DELETE /api/products/:id      # Delete product (Admin only)
 POST   /api/products/upload-image  # Upload product image
+```
+
+### Review Endpoints
+```http
+GET    /api/reviews/recent                 # Site-wide recent (or all) reviews (supports optional ?limit=)
+GET    /api/reviews/product/:productId     # Reviews for a specific product
+POST   /api/reviews/product/:productId     # (Auth) Add review
+PATCH  /api/reviews/:reviewId              # (Auth + owner/admin) Update review
+DELETE /api/reviews/:reviewId              # (Auth + owner/admin) Delete review
 ```
 
 ### Cart Endpoints
@@ -367,6 +392,73 @@ const limiter = rateLimit({
   max: 100 // limit each IP to 100 requests per windowMs
 });
 ```
+
+## ⚙️ Environment Variables (Reference)
+
+| Variable | Purpose | Required | Notes |
+|----------|---------|----------|-------|
+| `PORT` | HTTP server port | No | Defaults to 5000 |
+| `NODE_ENV` | Environment mode | No | `development` / `production` |
+| `MONGODB_URI` | Primary (Atlas) Mongo connection | Yes (prod) | First attempt |
+| `MONGODB_URI_LOCAL` | Local fallback Mongo | Recommended | Used if primary fails |
+| `JWT_SECRET` | Signing secret for auth tokens | Yes | Keep long & random |
+| `CLIENT_URL` | Production frontend origin | Yes (prod) | Prioritized in CORS |
+| `CLIENT_URL_LOCAL` | Local dev frontend origin | Recommended | Added after production in CORS list |
+| `CLIENT_URLS` | Extra comma-separated origins | Optional | Appended (legacy) |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | Yes (if images) |  |
+| `CLOUDINARY_API_KEY` | Cloudinary key | Yes |  |
+| `CLOUDINARY_API_SECRET` | Cloudinary secret | Yes | Never commit |
+| `EMAIL_HOST` / `EMAIL_PORT` | SMTP server | Optional | Needed if email features active |
+| `EMAIL_USER` / `EMAIL_PASS` | SMTP auth | Optional | Use app password / secret |
+
+### Sample `.env` (Production-Oriented)
+```env
+PORT=5000
+NODE_ENV=production
+
+# Database
+MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/beauty
+MONGODB_URI_LOCAL=mongodb://localhost:27017/beauty-ecommerce
+
+# Auth
+JWT_SECRET=super-long-random-secret-value
+
+# Frontend Origins (priority order: prod then local)
+CLIENT_URL=https://adeybloom-ecommerce-client.netlify.app
+CLIENT_URL_LOCAL=http://localhost:5173
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=xxxx
+CLOUDINARY_API_KEY=xxxx
+CLOUDINARY_API_SECRET=xxxx
+
+# Email (optional)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=example@gmail.com
+EMAIL_PASS=app-specific-password
+```
+
+### Operational Logs
+On startup you will see logs like:
+```
+[CORS] Allowed origins (priority order): [ 'https://adeybloom-ecommerce-client.netlify.app', 'http://localhost:5173' ]
+MongoDB Connected (primary Atlas): cluster.mongodb.net
+```
+If Atlas fails you will see a fallback attempt:
+```
+[DB] Primary connection failed – attempting local fallback...
+MongoDB Connected (fallback local): mongodb://localhost:27017/beauty-ecommerce
+```
+
+## 🩺 Suggested (Optional) Enhancements
+- Add `/api/health` returning `{ status: 'ok', db: 'connected', uptime: <seconds> }` for uptime checks.
+- Implement structured logging (pino / winston) with log levels.
+- Add indexing & query performance monitoring for large catalogs.
+- Introduce pagination metadata standardization across all list endpoints.
+
+---
+Latest README adjustments reflect: database failover, prioritized CORS, dynamic review endpoints, and enriched product responses.
 
 ## 📧 Email Integration
 
