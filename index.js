@@ -34,15 +34,43 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Allow multiple origins for CORS
-const defaultOrigins = ['http://localhost:5173'];
-const allowedOrigins = (process.env.CLIENT_URLS ? process.env.CLIENT_URLS.split(',') : defaultOrigins);
+// Allow multiple origins for CORS with priority: production (CLIENT_URL) first, then local fallback
+const normalizeOrigin = (o) => {
+    if (!o) return null;
+    let trimmed = o.trim();
+    // Remove trailing slash for consistency
+    if (trimmed.endsWith('/')) trimmed = trimmed.slice(0, -1);
+    return trimmed;
+};
+
+const prodOrigin = normalizeOrigin(process.env.CLIENT_URL);
+const localOrigin = normalizeOrigin(process.env.CLIENT_URL_LOCAL);
+
+let allowedOrigins = [];
+if (prodOrigin) allowedOrigins.push(prodOrigin);
+if (localOrigin && localOrigin !== prodOrigin) allowedOrigins.push(localOrigin);
+
+// Backward compatibility: if CLIENT_URLS is set, append (but keep earlier priority order)
+if (process.env.CLIENT_URLS) {
+    const extra = process.env.CLIENT_URLS.split(',').map(normalizeOrigin).filter(Boolean);
+    for (const e of extra) {
+        if (!allowedOrigins.includes(e)) allowedOrigins.push(e);
+    }
+}
+
+// Fallback default if nothing provided
+if (allowedOrigins.length === 0) {
+    allowedOrigins = ['http://localhost:5173'];
+}
+
+console.log('[CORS] Allowed origins (priority order):', allowedOrigins);
+
 app.use(cors({
     origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps, curl, etc.)
+        // Allow requests with no origin (mobile apps, curl, SSR server-to-server)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        if (!allowedOrigins.includes(origin)) {
+            const msg = `[CORS] Origin not allowed: ${origin}`;
             return callback(new Error(msg), false);
         }
         return callback(null, true);
