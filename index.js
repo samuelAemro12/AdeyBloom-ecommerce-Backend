@@ -65,6 +65,33 @@ if (allowedOrigins.length === 0) {
 
 console.log('[CORS] Allowed origins (priority order):', allowedOrigins);
 
+// Production assertion: ensure primary client origin is configured
+if (process.env.NODE_ENV === 'production') {
+    const expectedNetlify = 'https://adeybloom-ecommerce-client.netlify.app/';
+    const hasConfiguredProd = !!prodOrigin;
+    const listContainsNetlify = allowedOrigins.includes(expectedNetlify);
+
+    if (!hasConfiguredProd) {
+        console.error('[CORS][ASSERT] CLIENT_URL is not set in production environment.');
+    }
+
+    if (!listContainsNetlify) {
+        // If user forgot to set but we can infer the expected domain, we can either inject or fail.
+        console.warn('[CORS][WARN] Expected Netlify origin not present. Injecting fallback temporarily:', expectedNetlify);
+        allowedOrigins.unshift(expectedNetlify);
+    }
+
+    // Re-log after potential injection
+    console.log('[CORS] Final enforced origins:', allowedOrigins);
+
+    // Hard fail if still misconfigured (no prod origin at index 0)
+    if (allowedOrigins[0] !== expectedNetlify) {
+        console.error('[CORS][FATAL] Production origin misconfigured. Set CLIENT_URL to', expectedNetlify, 'and redeploy.');
+        // Optionally exit: uncomment next line to enforce hard stop
+        process.exit(1);
+    }
+}
+
 app.use(cors({
     origin: function (origin, callback) {
         // Allow requests with no origin (mobile apps, curl, SSR server-to-server)
