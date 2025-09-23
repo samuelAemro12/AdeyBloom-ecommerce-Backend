@@ -67,7 +67,7 @@ console.log('[CORS] Allowed origins (priority order):', allowedOrigins);
 
 // Production assertion: ensure primary client origin is configured
 if (process.env.NODE_ENV === 'production') {
-    const expectedNetlify = 'https://adeybloom-ecommerce-client.netlify.app/';
+    const expectedNetlify = 'https://adeybloom-ecommerce-client.netlify.app';
     const hasConfiguredProd = !!prodOrigin;
     const listContainsNetlify = allowedOrigins.includes(expectedNetlify);
 
