@@ -21,6 +21,9 @@ dotenv.config();
 // Create Express app
 const app = express();
 
+// let Express know it's behind a proxy (required for secure cookies on many hosts)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet()); // Security headers
 app.use(express.json());
@@ -34,75 +37,15 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Allow multiple origins for CORS with priority: production (CLIENT_URL) first, then local fallback
-const normalizeOrigin = (o) => {
-    if (!o) return null;
-    let trimmed = o.trim();
-    // Remove trailing slash for consistency
-    if (trimmed.endsWith('/')) trimmed = trimmed.slice(0, -1);
-    return trimmed;
-};
-
-const prodOrigin = normalizeOrigin(process.env.CLIENT_URL);
-const localOrigin = normalizeOrigin(process.env.CLIENT_URL_LOCAL);
-
-let allowedOrigins = [];
-if (prodOrigin) allowedOrigins.push(prodOrigin);
-if (localOrigin && localOrigin !== prodOrigin) allowedOrigins.push(localOrigin);
-
-// Backward compatibility: if CLIENT_URLS is set, append (but keep earlier priority order)
-if (process.env.CLIENT_URLS) {
-    const extra = process.env.CLIENT_URLS.split(',').map(normalizeOrigin).filter(Boolean);
-    for (const e of extra) {
-        if (!allowedOrigins.includes(e)) allowedOrigins.push(e);
-    }
-}
-
-// Fallback default if nothing provided
-if (allowedOrigins.length === 0) {
-    allowedOrigins = ['http://localhost:5173'];
-}
-
-console.log('[CORS] Allowed origins (priority order):', allowedOrigins);
-
-// Production assertion: ensure primary client origin is configured
-if (process.env.NODE_ENV === 'production') {
-    const expectedNetlify = 'https://adeybloom-ecommerce-client.netlify.app';
-    const hasConfiguredProd = !!prodOrigin;
-    const listContainsNetlify = allowedOrigins.includes(expectedNetlify);
-
-    if (!hasConfiguredProd) {
-        console.error('[CORS][ASSERT] CLIENT_URL is not set in production environment.');
-    }
-
-    if (!listContainsNetlify) {
-        // If user forgot to set but we can infer the expected domain, we can either inject or fail.
-        console.warn('[CORS][WARN] Expected Netlify origin not present. Injecting fallback temporarily:', expectedNetlify);
-        allowedOrigins.unshift(expectedNetlify);
-    }
-
-    // Re-log after potential injection
-    console.log('[CORS] Final enforced origins:', allowedOrigins);
-
-    // Hard fail if still misconfigured (no prod origin at index 0)
-    if (allowedOrigins[0] !== expectedNetlify) {
-        console.error('[CORS][FATAL] Production origin misconfigured. Set CLIENT_URL to', expectedNetlify, 'and redeploy.');
-        // Optionally exit: uncomment next line to enforce hard stop
-        process.exit(1);
-    }
-}
+// Allow multiple origins for CORS
+const allowedOrigins = [
+  (process.env.CLIENT_URL || 'https://adeybloom-ecommerce-client.netlify.app').replace(/\/$/, ''),
+  (process.env.CLIENT_URL_LOCAL || 'http://localhost:5173').replace(/\/$/, '')
+];
 
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, SSR server-to-server)
-        if (!origin) return callback(null, true);
-        if (!allowedOrigins.includes(origin)) {
-            const msg = `[CORS] Origin not allowed: ${origin}`;
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-    },
-    credentials: true
+  origin: allowedOrigins,
+  credentials: true
 }));
 
 // Routes

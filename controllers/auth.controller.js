@@ -63,13 +63,14 @@ export const register = async (req, res) => {
 
         const token = generateToken(user._id);
 
-        // Set HTTP-only cookie
-        res.cookie('token', token, {
+        const cookieOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production', // true on prod (HTTPS)
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-        });
+        };
+
+        res.cookie('token', token, cookieOptions);
 
         res.status(201).json({
             success: true,
@@ -127,13 +128,14 @@ export const login = async (req, res) => {
 
         const token = generateToken(user._id);
 
-        // Set HTTP-only cookie
-        res.cookie('token', token, {
+        const cookieOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production', // true on prod (HTTPS)
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-        });
+        };
+
+        res.cookie('token', token, cookieOptions);
 
         res.json({
             success: true,
@@ -158,6 +160,8 @@ export const login = async (req, res) => {
 export const logout = (req, res) => {
     res.cookie('token', '', {
         httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         expires: new Date(0)
     });
     res.json({ success: true, message: 'Logged out successfully' });
@@ -230,13 +234,14 @@ export const registerAdmin = async (req, res) => {
 
         const token = generateToken(user._id);
 
-        // Set HTTP-only cookie
-        res.cookie('token', token, {
+        const cookieOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production', // true on prod (HTTPS)
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-        });
+        };
+
+        res.cookie('token', token, cookieOptions);
 
         res.status(201).json({
             success: true,
