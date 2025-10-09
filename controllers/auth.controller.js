@@ -79,7 +79,8 @@ export const register = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role
-            }
+            },
+            token // include token for header-based auth on frontend
         });
     } catch (error) {
         res.status(500).json({
@@ -144,7 +145,8 @@ export const login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role
-            }
+            },
+            token // include token for header-based auth on frontend
         });
     } catch (error) {
         res.status(500).json({
@@ -250,7 +252,8 @@ export const registerAdmin = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role
-            }
+            },
+            token // include token for header-based auth on frontend
         });
     } catch (error) {
         console.error('Admin registration error:', error);
