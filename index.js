@@ -57,9 +57,9 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/api/telegram', telegramRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/telegram', telegramRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
