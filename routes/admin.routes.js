@@ -3,7 +3,10 @@ import { authenticateToken, isAdmin } from '../middleware/auth.middleware.js';
 import { 
     getDashboardStats, 
     getAllUsers, 
+    createUser,
+    updateUser,
     getAllOrders, 
+    getAdminProducts,
     updateOrderStatus,
     updateUserRole,
     deleteUser,
@@ -26,6 +29,8 @@ router.put('/settings', updateSettings);
 
 // User management
 router.get('/users', getAllUsers);
+router.post('/users', createUser);
+router.put('/users/:id', updateUser);
 router.put('/users/:id/role', updateUserRole);
 router.put('/users/:id/active', toggleUserActive);
 router.delete('/users/:id', deleteUser);
@@ -33,5 +38,8 @@ router.delete('/users/:id', deleteUser);
 // Order management
 router.get('/orders', getAllOrders);
 router.put('/orders/:id/status', updateOrderStatus);
+
+// Product management
+router.get('/products', getAdminProducts);
 
 export default router;

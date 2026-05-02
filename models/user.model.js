@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   // allow missing passwordHash for users created via Telegram auth
   passwordHash: { type: String },
   role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
+  isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   // Optional Telegram identifier for bot users. Sparse + unique so it doesn't
   // collide with existing users and is only enforced when present.

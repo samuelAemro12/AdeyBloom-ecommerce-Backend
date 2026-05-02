@@ -1,8 +1,28 @@
+import bcrypt from 'bcryptjs';
 import User from '../models/user.model.js';
 import Product from '../models/product.model.js';
 import Order from '../models/order.model.js';
 import OrderItem from '../models/orderItem.model.js';
 import Setting from '../models/setting.model.js';
+
+const getDateKey = (date) => new Date(date).toISOString().slice(0, 10);
+
+const buildSevenDaySales = (salesData) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return Array.from({ length: 7 }, (_, index) => {
+        const currentDate = new Date(today);
+        currentDate.setDate(today.getDate() - (6 - index));
+        const dateKey = getDateKey(currentDate);
+        const matchingEntry = salesData.find((entry) => entry._id === dateKey);
+
+        return {
+            _id: dateKey,
+            totalSales: matchingEntry?.totalSales || 0
+        };
+    });
+};
 
 export const getDashboardStats = async (req, res) => {
     try {
@@ -10,25 +30,29 @@ export const getDashboardStats = async (req, res) => {
             totalUsers,
             totalProducts,
             totalOrders,
-            recentOrders
+            recentOrders,
+            activeProducts
         ] = await Promise.all([
             User.countDocuments({ role: 'customer' }),
-            Product.countDocuments(),
+            Product.countDocuments({ active: true }),
             Order.countDocuments(),
-            Order.find().sort({ createdAt: -1 }).limit(5).populate('user', 'name email')
+            Order.find()
+                .sort({ createdAt: -1 })
+                .limit(5)
+                .populate('user', 'name email'),
+            Product.find({ active: true }).sort({ stock: 1 })
         ]);
 
-        const totalRevenue = await Order.aggregate([
+        const totalRevenueAgg = await Order.aggregate([
             { $match: { status: 'delivered' } },
             { $group: { _id: null, total: { $sum: '$totalAmount' } } }
         ]);
 
-        // Sales data for the last 7 days
         const salesData = await Order.aggregate([
             {
                 $match: {
-                    status: 'delivered',
-                    createdAt: { $gte: new Date(new Date() - 7 * 24 * 60 * 60 * 1000) }
+                    status: { $in: ['processing', 'shipped', 'delivered'] },
+                    createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
                 }
             },
             {
@@ -40,7 +64,6 @@ export const getDashboardStats = async (req, res) => {
             { $sort: { _id: 1 } }
         ]);
 
-        // Top selling products
         const topSellingProducts = await OrderItem.aggregate([
             {
                 $group: {
@@ -61,11 +84,19 @@ export const getDashboardStats = async (req, res) => {
             { $unwind: '$productDetails' }
         ]);
 
-        // Total items sold across all orders (sum of quantities)
         const itemsSoldAgg = await OrderItem.aggregate([
             { $group: { _id: null, totalQuantity: { $sum: '$quantity' } } }
         ]);
-        const itemsSold = itemsSoldAgg[0]?.totalQuantity || 0;
+
+        const lowStockProducts = activeProducts
+            .filter((product) => product.stock <= product.lowStockThreshold)
+            .slice(0, 5)
+            .map((product) => ({
+                _id: product._id,
+                name: product.name,
+                stock: product.stock,
+                lowStockThreshold: product.lowStockThreshold
+            }));
 
         res.json({
             success: true,
@@ -73,10 +104,11 @@ export const getDashboardStats = async (req, res) => {
                 totalUsers,
                 totalProducts,
                 totalOrders,
-                    totalRevenue: totalRevenue[0]?.total || 0,
-                    itemsSold,
+                totalRevenue: totalRevenueAgg[0]?.total || 0,
+                itemsSold: itemsSoldAgg[0]?.totalQuantity || 0,
                 recentOrders,
-                salesData,
+                salesData: buildSevenDaySales(salesData),
+                lowStockProducts,
                 topSellingProducts
             }
         });
@@ -90,9 +122,6 @@ export const getDashboardStats = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
     try {
-        // Return all users (customers and admins). Previously this endpoint
-        // filtered to only customers which prevented admins from appearing
-        // in the admin users list.
         const users = await User.find()
             .select('-passwordHash')
             .sort({ createdAt: -1 });
@@ -100,6 +129,90 @@ export const getAllUsers = async (req, res) => {
         res.json({
             success: true,
             users
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const createUser = async (req, res) => {
+    try {
+        const { name, email, password, role = 'customer', isActive = true } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, email, and password are required'
+            });
+        }
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'User already exists'
+            });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        const user = await User.create({
+            name,
+            email,
+            passwordHash,
+            role,
+            isActive
+        });
+
+        const safeUser = await User.findById(user._id).select('-passwordHash');
+
+        res.status(201).json({
+            success: true,
+            user: safeUser
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const updateUser = async (req, res) => {
+    try {
+        const { name, email, password, role, isActive } = req.body;
+        const updates = {};
+
+        if (name !== undefined) updates.name = name;
+        if (email !== undefined) updates.email = email;
+        if (role !== undefined) updates.role = role;
+        if (isActive !== undefined) updates.isActive = isActive;
+
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            updates.passwordHash = await bcrypt.hash(password, salt);
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            updates,
+            { new: true, runValidators: true }
+        ).select('-passwordHash');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            user
         });
     } catch (error) {
         res.status(500).json({
@@ -117,7 +230,7 @@ export const getAllOrders = async (req, res) => {
                 path: 'orderItems',
                 populate: {
                     path: 'product',
-                    select: 'name price'
+                    select: 'name price images'
                 }
             })
             .sort({ createdAt: -1 });
@@ -134,13 +247,48 @@ export const getAllOrders = async (req, res) => {
     }
 };
 
+export const getAdminProducts = async (req, res) => {
+    try {
+        const { search = '', status = 'all' } = req.query;
+        const query = {};
+
+        if (status === 'active') {
+            query.active = true;
+        } else if (status === 'archived') {
+            query.active = false;
+        }
+
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { brand: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const products = await Product.find(query)
+            .populate('category', 'name')
+            .sort({ createdAt: -1 });
+
+        res.json({
+            success: true,
+            products
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 export const updateOrderStatus = async (req, res) => {
     try {
         const { status } = req.body;
         const order = await Order.findByIdAndUpdate(
             req.params.id,
             { status },
-            { new: true }
+            { new: true, runValidators: true }
         ).populate('user', 'name email');
 
         if (!order) {
@@ -168,7 +316,7 @@ export const updateUserRole = async (req, res) => {
         const user = await User.findByIdAndUpdate(
             req.params.id,
             { role },
-            { new: true }
+            { new: true, runValidators: true }
         ).select('-passwordHash');
 
         if (!user) {
@@ -196,16 +344,25 @@ export const toggleUserActive = async (req, res) => {
         const user = await User.findByIdAndUpdate(
             req.params.id,
             { isActive },
-            { new: true }
+            { new: true, runValidators: true }
         ).select('-passwordHash');
 
         if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
         }
 
-        res.json({ success: true, user });
+        res.json({
+            success: true,
+            user
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 
@@ -238,18 +395,35 @@ export const getSettings = async (req, res) => {
         if (!settings) {
             settings = await Setting.create({});
         }
-        res.json({ success: true, settings });
+
+        res.json({
+            success: true,
+            settings
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 
 export const updateSettings = async (req, res) => {
     try {
         const updates = req.body;
-        const settings = await Setting.findOneAndUpdate({}, updates, { new: true, upsert: true });
-        res.json({ success: true, settings });
+        const settings = await Setting.findOneAndUpdate({}, updates, {
+            new: true,
+            upsert: true
+        });
+
+        res.json({
+            success: true,
+            settings
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 };

@@ -231,11 +231,12 @@ export const deleteProduct = async (req, res) => {
 export const getLowStockProducts = async (req, res) => {
   try {
     const products = await Product.find({
-      stock: { $lte: '$lowStockThreshold' },
       active: true
     }).populate('category', 'name');
     
-    res.json(products);
+    const lowStockProducts = products.filter((product) => product.stock <= product.lowStockThreshold);
+
+    res.json(lowStockProducts);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
